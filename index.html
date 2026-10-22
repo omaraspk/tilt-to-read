@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tilt to Read</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: picture on top, the child's mirrored camera in the middle, one word on each side; tilt your head toward the word that matches */
+:root{
+  --paper:#EEF4FA; --card:#FFFFFF; --ink:#1B2A4E; --muted:#5B6A8C; --line:#D3DEEC; --soft:#E2EBF6;
+  --left:#3B7FEE; --right:#EB5A48; --good:#1E9A60; --bad:#E0483A; --sun:#FFBE2E; --on:#FFFFFF;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif; --read:"Andika","Comic Sans MS",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{--paper:#111A2E;--card:#1B2643;--ink:#EDF2FB;--muted:#9EABC9;--line:#2C3A5E;--soft:#223052;--left:#6A9FFF;--right:#FF7A6A;--good:#3CC184;--bad:#FF6B5C;--on:#0E1528;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--read);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button{font:inherit;color:inherit;cursor:pointer}
+.screen{height:100%;display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+[hidden]{display:none!important}
+h1{font-family:var(--display);font-weight:800;margin:0;line-height:1.05}
+.btn{min-height:58px;border:0;border-radius:18px;padding:0 24px;font-family:var(--display);font-weight:800;font-size:1.25rem;background:var(--left);color:var(--on);box-shadow:0 5px 0 rgba(0,0,0,.15)}
+.btn:active{transform:translateY(4px);box-shadow:none}
+.btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--line)}
+
+/* start screen */
+#start{align-items:center;justify-content:center;gap:18px;text-align:center;overflow:auto}
+#start h1{font-size:clamp(2.6rem,7vw,4rem)}
+#start h1 span{color:var(--right)}
+.how{max-width:640px;color:var(--muted);font-size:1.15rem;margin:0}
+.sets{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;width:min(100%,820px)}
+.set{min-height:92px;border-radius:20px;border:3px solid var(--line);background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--display);font-weight:800;font-size:1.15rem}
+.set span{font-size:1.6rem;letter-spacing:2px}
+.set[aria-pressed="true"]{border-color:var(--left);box-shadow:0 0 0 3px var(--left)}
+.opts{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;color:var(--muted)}
+.opts label{display:flex;gap:8px;align-items:center;font-size:1.05rem}
+.opts input{width:24px;height:24px}
+.privacy{font-size:.95rem;color:var(--muted);max-width:640px;margin:0}
+#err{color:var(--bad);font-weight:700;max-width:640px;margin:0}
+
+/* game */
+#game{gap:10px}
+.top{display:flex;align-items:center;gap:12px}
+.top .grow{flex:1;min-width:0}
+.score{font-family:var(--display);font-weight:800;font-size:1.3rem;font-variant-numeric:tabular-nums}
+.dots{display:flex;gap:6px;flex-wrap:wrap}
+.dots i{width:14px;height:14px;border-radius:50%;background:var(--soft);border:2px solid var(--line)}
+.dots i.ok{background:var(--good);border-color:var(--good)}
+.dots i.no{background:var(--bad);border-color:var(--bad)}
+.iconbtn{width:52px;height:52px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-size:1.4rem;flex:none}
+.pic{align-self:center;font-size:clamp(4.5rem,13vh,8rem);line-height:1;background:var(--card);border:3px solid var(--line);border-radius:28px;padding:10px 30px}
+.arena{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);gap:clamp(10px,2vw,22px);align-items:center}
+.word{height:min(100%,320px);min-height:120px;border-radius:28px;border:5px solid;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  font-family:var(--read);font-weight:700;font-size:clamp(2.6rem,7vw,5rem);line-height:1;transition:transform .15s,background .15s}
+.word small{font-family:var(--display);font-size:1rem;font-weight:600;color:var(--muted)}
+.word.l{border-color:var(--left)} .word.r{border-color:var(--right)}
+.word.lean{transform:scale(1.07)}
+.word.l.lean{background:color-mix(in srgb,var(--left) 18%,var(--card))} .word.r.lean{background:color-mix(in srgb,var(--right) 18%,var(--card))}
+.word.right{background:color-mix(in srgb,var(--good) 25%,var(--card));border-color:var(--good);animation:pop .5s}
+.word.wrong{animation:shake .45s;border-color:var(--bad)}
+@keyframes pop{40%{transform:scale(1.12)}}
+@keyframes shake{20%,60%{transform:translateX(-12px)}40%,80%{transform:translateX(12px)}}
+.cam{position:relative;height:100%;max-height:min(100%,420px);aspect-ratio:3/4;max-width:100%;justify-self:center;border-radius:28px;overflow:hidden;background:#000;border:5px solid var(--line)}
+.cam video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.cam .nocam{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:#E9EDF5;font-family:var(--display);font-size:1.1rem}
+.meter{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:80%;height:16px;border-radius:8px;background:rgba(255,255,255,.35)}
+.meter b{position:absolute;top:-6px;width:28px;height:28px;border-radius:50%;background:#FFFFFF;box-shadow:0 2px 6px rgba(0,0,0,.4);left:calc(50% - 14px);transition:left .08s}
+.meter i{position:absolute;top:0;bottom:0;width:3px;background:rgba(255,255,255,.8)}
+.hint{text-align:center;color:var(--muted);font-family:var(--display);font-size:1.1rem;min-height:1.6em}
+#done{align-items:center;justify-content:center;gap:16px;text-align:center}
+#done .big{font-size:4rem}
+@media (orientation:portrait){.arena{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr)}.word{font-size:clamp(2.2rem,8vw,4rem)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<section class="screen" id="start">
+  <h1>Tilt to <span>Read</span></h1>
+  <p class="how">Look at the picture. Tilt your head toward the word that matches it. Tap a word if you'd rather not tilt.</p>
+  <div class="sets" id="sets"></div>
+  <div class="opts">
+    <label><input type="checkbox" id="useCam" checked> Use the camera</label>
+    <label><input type="checkbox" id="swap"> Swap left and right</label>
+  </div>
+  <button class="btn" id="go">Start ▶</button>
+  <p id="err" hidden></p>
+  <p class="privacy">The camera picture stays on this tablet. Nothing is recorded or uploaded. Head tracking runs on the tablet itself.</p>
+</section>
+
+<section class="screen" id="game" hidden>
+  <div class="top">
+    <button class="iconbtn" id="quit" aria-label="Back to start">✕</button>
+    <div class="grow"><div class="dots" id="dots"></div></div>
+    <div class="score" id="score">0 / 10</div>
+  </div>
+  <div class="pic" id="pic" aria-live="polite"></div>
+  <div class="arena">
+    <button class="word l" id="wl"><span></span><small>← tilt this way</small></button>
+    <div class="cam" id="cam">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="nocam" id="nocam" hidden>Camera is off.<br>Tap a word instead.</div>
+      <div class="meter" id="meter" aria-hidden="true"><i style="left:22%"></i><i style="right:22%"></i><b></b></div>
+    </div>
+    <button class="word r" id="wr"><span></span><small>tilt this way →</small></button>
+  </div>
+  <div class="hint" id="hint">Get ready…</div>
+</section>
+
+<section class="screen" id="done" hidden>
+  <div class="big" id="doneStars"></div>
+  <h1 id="doneTitle"></h1>
+  <div class="opts"><button class="btn ghost" id="again">Play again</button><button class="btn" id="home">Choose words</button></div>
+</section>
+
+<script type="module">
+/* ── picture words (same lists as Sound Trail) ── */
+const SETS=[
+  ['Short a','cat🐱 hat🎩 bat🦇 map🗺️ pan🍳 van🚐 can🥫 rat🐀 bag👜 cap🧢'],
+  ['Short i','pig🐷 pin📌 lip👄 bin🗑️ kid🧒 dig⛏️ fin🦈 zip🤐'],
+  ['Short o','dog🐶 log🪵 pot🍲 fox🦊 box📦 hot🔥 mop🧹'],
+  ['Short u','bus🚌 sun☀️ cup☕ bug🐛 nut🥜 tub🛁 hug🤗'],
+  ['Short e','bed🛏️ hen🐔 pen🖊️ net🥅 web🕸️ jet✈️ ten🔟 leg🦵'],
+  ['All short vowels',null],
+  ['Digraphs','ship🚢 fish🐟 shell🐚 chick🐤 chip🍟 duck🦆 sock🧦 bath🛁 ring💍 king🤴'],
+  ['Silent e','cake🎂 kite🪁 bone🦴 rose🌹 cube🧊 bike🚲 snake🐍 home🏠'],
+  ['Vowel teams','rain🌧️ snail🐌 tree🌳 bee🐝 boat⛵ goat🐐 moon🌙 coin🪙 cow🐄 saw🪚'],
+].map(([name,list])=>({name,words:list?list.split(' ').map(s=>{const m=s.match(/^([a-z]+)(.+)$/);return {w:m[1],e:m[2]}}):null}));
+SETS[5].words=SETS.slice(0,5).flatMap(s=>s.words);
+
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+let setIdx=0;try{setIdx=+localStorage.getItem('tilt.set')||0}catch(e){}
+let swap=false;try{swap=localStorage.getItem('tilt.swap')==='1'}catch(e){}
+$('swap').checked=swap;
+
+/* ── start screen ── */
+function drawSets(){$('sets').innerHTML='';SETS.forEach((s,i)=>{const b=document.createElement('button');b.className='set';b.setAttribute('aria-pressed',String(i===setIdx));
+  b.innerHTML=`<span>${s.words.slice(0,3).map(w=>w.e).join('')}</span>${s.name}`;b.onclick=()=>{setIdx=i;try{localStorage.setItem('tilt.set',i)}catch(e){}drawSets()};$('sets').append(b)})}
+drawSets();
+$('swap').onchange=e=>{swap=e.target.checked;try{localStorage.setItem('tilt.swap',swap?'1':'0')}catch(e){}};
+
+/* ── sounds: chime only ── */
+let actx=null;
+function tone(fs,dur=.1,type='sine',gain=.14){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const t0=actx.currentTime;
+  fs.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;const st=t0+i*dur;g.gain.setValueAtTime(0,st);
+    g.gain.linearRampToValueAtTime(gain,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+dur*2);o.connect(g).connect(actx.destination);o.start(st);o.stop(st+dur*2.2)})}catch(e){}}
+const yay=()=>tone([660,880,1320],.09), nope=()=>tone([230,180],.13,'triangle',.1);
+
+/* ── camera + head tilt ── */
+let stream=null,landmarker=null,camOn=false,raf=0,lastVideoTime=-1;
+async function startCamera(){
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+  const v=$('video');v.srcObject=stream;await v.play();
+  const {FaceLandmarker,FilesetResolver}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+  const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const opts=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:d},runningMode:'VIDEO',numFaces:1});
+  try{landmarker=await FaceLandmarker.createFromOptions(files,opts('GPU'))}catch(e){landmarker=await FaceLandmarker.createFromOptions(files,opts('CPU'))}
+  camOn=true;loop()}
+function stopCamera(){cancelAnimationFrame(raf);camOn=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null}
+/* roll angle from the outer eye corners; positive = head leans toward the child's left on the mirrored screen */
+let roll=0,smooth=0;
+function loop(){const v=$('video');
+  if(landmarker&&v.readyState>=2&&v.currentTime!==lastVideoTime){lastVideoTime=v.currentTime;
+    const r=landmarker.detectForVideo(v,performance.now());const lm=r.faceLandmarks&&r.faceLandmarks[0];
+    if(lm){const a=lm[33],b=lm[263];roll=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;smooth=smooth*.6+roll*.4;face=true}else face=false;
+    onTilt()}
+  raf=requestAnimationFrame(loop)}
+
+/* tilt state: lean past 14° and hold ~0.45s to choose; come back near level before the next choice */
+const T_ON=14,T_OFF=6,HOLD=450;let face=false,leanSide=null,leanStart=0,needCenter=false;
+function onTilt(){const side=swap?-smooth:smooth;
+  const pos=Math.max(-1,Math.min(1,-side/30));$('meter').querySelector('b').style.left=`calc(${50+pos*45}% - 14px)`;
+  if(!face){setLean(null);$('hint').textContent=locked?'':'Show your face to the camera';return}
+  if(locked)return;
+  if(needCenter){if(Math.abs(side)<T_OFF)needCenter=false;else{$('hint').textContent='Straighten up';return}}
+  const want=side>T_ON?'l':side<-T_ON?'r':null;
+  if(want!==leanSide){leanSide=want;leanStart=performance.now()}
+  setLean(want);
+  if(want){$('hint').textContent='Hold it…';if(performance.now()-leanStart>HOLD){needCenter=true;choose(want)}}
+  else $('hint').textContent='Tilt your head toward the matching word'}
+function setLean(s){$('wl').classList.toggle('lean',s==='l');$('wr').classList.toggle('lean',s==='r')}
+
+/* ── game ── */
+let rounds=[],ri=0,score=0,locked=false,answer='l',results=[];
+function newGame(){const words=SETS[setIdx].words;
+  rounds=shuffle(words).concat(shuffle(words)).slice(0,10).map(t=>{const others=words.filter(x=>x.w!==t.w);const d=others[Math.random()*others.length|0];return {t,d,side:Math.random()<.5?'l':'r'}});
+  ri=0;score=0;results=[];drawRound()}
+function drawRound(){const R=rounds[ri];locked=false;answer=R.side;
+  $('pic').textContent=R.t.e;
+  $('wl').querySelector('span').textContent=R.side==='l'?R.t.w:R.d.w;$('wr').querySelector('span').textContent=R.side==='r'?R.t.w:R.d.w;
+  ['wl','wr'].forEach(id=>$(id).classList.remove('right','wrong','lean'));
+  $('dots').innerHTML=rounds.map((_,i)=>`<i class="${results[i]===true?'ok':results[i]===false?'no':''}"></i>`).join('');
+  $('score').textContent=`${score} / ${rounds.length}`;
+  $('hint').textContent=camOn?'Tilt your head toward the matching word':'Tap the matching word'}
+function choose(side){if(locked)return;locked=true;const el=$(side==='l'?'wl':'wr');
+  if(side===answer){el.classList.add('right');yay();score++;results[ri]=true;$('hint').textContent='Yes!'}
+  else{el.classList.add('wrong');$(answer==='l'?'wl':'wr').classList.add('right');nope();results[ri]=false;$('hint').textContent='This one matches'}
+  $('score').textContent=`${score} / ${rounds.length}`;
+  setTimeout(()=>{ri++;if(ri<rounds.length)drawRound();else finish()},side===answer?1100:1800)}
+$('wl').onclick=()=>choose('l');$('wr').onclick=()=>choose('r');
+function finish(){const stars=score>=9?3:score>=6?2:1;$('doneStars').textContent='⭐'.repeat(stars);
+  $('doneTitle').textContent=`You matched ${score} of ${rounds.length}!`;show('done');yay()}
+function show(id){['start','game','done'].forEach(s=>$(s).hidden=s!==id)}
+
+$('go').onclick=async()=>{$('err').hidden=true;show('game');newGame();
+  const want=$('useCam').checked;$('nocam').hidden=want;$('meter').hidden=!want;
+  if(want&&!camOn){$('hint').textContent='Starting the camera…';
+    try{await startCamera();drawRound()}
+    catch(e){stopCamera();$('nocam').hidden=false;$('meter').hidden=true;
+      $('hint').textContent=e&&e.name==='NotAllowedError'?'Camera blocked. Tap a word instead.':'Camera unavailable. Tap a word instead.'}}};
+$('quit').onclick=()=>{stopCamera();show('start')};
+$('again').onclick=()=>{show('game');newGame()};
+$('home').onclick=()=>{stopCamera();show('start')};
+if(!window.isSecureContext||!navigator.mediaDevices){$('err').hidden=false;
+  $('err').textContent='The camera only works when this page is opened from an https:// address. Tapping still works.';$('useCam').checked=false}
+</script>
+</body>
+</html>
