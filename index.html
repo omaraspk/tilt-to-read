@@ -85,16 +85,22 @@ h1{font-family:var(--display);font-weight:800;margin:0;line-height:1.05}
   <div class="opts">
     <label><input type="checkbox" id="useCam" checked> Use the camera</label>
     <label><input type="checkbox" id="swap"> Swap left and right</label>
+    <label><input type="checkbox" id="music" checked> Music</label>
+    <label><input type="checkbox" id="sfx" checked> Sound effects</label>
   </div>
   <button class="btn" id="go">Start ▶</button>
   <p id="err" hidden></p>
   <p class="privacy">The camera picture stays on this tablet. Nothing is recorded or uploaded. Head tracking runs on the tablet itself.</p>
+  <p class="privacy">Music: “Happy Ukulele” by AtlasAudio, from Pixabay.</p>
 </section>
+<audio id="bgm" src="music.mp3" loop preload="auto"></audio>
 
 <section class="screen" id="game" hidden>
   <div class="top">
     <button class="iconbtn" id="quit" aria-label="Back to start">✕</button>
     <div class="grow"><div class="dots" id="dots"></div></div>
+    <button class="iconbtn" id="muteM" aria-label="Music on or off">🎵</button>
+    <button class="iconbtn" id="muteS" aria-label="Sound effects on or off">🔊</button>
     <div class="score" id="score">0 / 10</div>
   </div>
   <div class="pic" id="pic" aria-live="polite"></div>
@@ -143,12 +149,39 @@ function drawSets(){$('sets').innerHTML='';SETS.forEach((s,i)=>{const b=document
 drawSets();
 $('swap').onchange=e=>{swap=e.target.checked;try{localStorage.setItem('tilt.swap',swap?'1':'0')}catch(e){}};
 
-/* ── sounds: chime only ── */
-let actx=null;
-function tone(fs,dur=.1,type='sine',gain=.14){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const t0=actx.currentTime;
-  fs.forEach((f,i)=>{const o=actx.createOscillator(),g=actx.createGain();o.type=type;o.frequency.value=f;const st=t0+i*dur;g.gain.setValueAtTime(0,st);
-    g.gain.linearRampToValueAtTime(gain,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+dur*2);o.connect(g).connect(actx.destination);o.start(st);o.stop(st+dur*2.2)})}catch(e){}}
+/* ── sound effects (made in code) + background music ── */
+const pref=k=>{try{return localStorage.getItem('tilt.'+k)!=='0'}catch(e){return true}};
+const setPref=(k,v)=>{try{localStorage.setItem('tilt.'+k,v?'1':'0')}catch(e){}};
+let sfxOn=pref('sfx'),musicOn=pref('music');
+$('sfx').checked=sfxOn;$('music').checked=musicOn;
+let actx=null;const ac=()=>{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx};
+function tone(fs,dur=.1,type='sine',gain=.14){if(!sfxOn)return;try{const a=ac();const t0=a.currentTime;
+  fs.forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;const st=t0+i*dur;g.gain.setValueAtTime(0,st);
+    g.gain.linearRampToValueAtTime(gain,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+dur*2);o.connect(g).connect(a.destination);o.start(st);o.stop(st+dur*2.2)})}catch(e){}}
 const yay=()=>tone([660,880,1320],.09), nope=()=>tone([230,180],.13,'triangle',.1);
+const pop=()=>tone([520,780],.05,'sine',.1);                 /* new picture */
+const tick=()=>tone([1200],.03,'square',.04);                /* a word starts to lean */
+const fanfare=()=>tone([523,659,784,1047,784,1047,1319],.12,'triangle',.13);
+/* rising tone while a tilt is held: the hold "charges up" */
+let charge=null;
+function chargeStart(){if(!sfxOn||charge)return;try{const a=ac(),o=a.createOscillator(),g=a.createGain();o.type='sine';
+  o.frequency.setValueAtTime(330,a.currentTime);o.frequency.linearRampToValueAtTime(880,a.currentTime+HOLD/1000);
+  g.gain.setValueAtTime(0,a.currentTime);g.gain.linearRampToValueAtTime(.06,a.currentTime+.05);o.connect(g).connect(a.destination);o.start();charge={o,g}}catch(e){}}
+function chargeStop(){if(!charge)return;try{const a=ac();charge.g.gain.cancelScheduledValues(a.currentTime);charge.g.gain.setTargetAtTime(0,a.currentTime,.02);charge.o.stop(a.currentTime+.1)}catch(e){}charge=null}
+/* whoosh: filtered noise sweep when a word is chosen */
+function whoosh(){if(!sfxOn)return;try{const a=ac(),n=a.sampleRate*.35,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+  const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=buf;f.type='bandpass';f.Q.value=1.2;
+  f.frequency.setValueAtTime(400,a.currentTime);f.frequency.exponentialRampToValueAtTime(3000,a.currentTime+.3);g.gain.value=.25;s.connect(f).connect(g).connect(a.destination);s.start()}catch(e){}}
+const bgm=$('bgm');bgm.volume=.22;
+function musicPlay(){if(musicOn){bgm.volume=.22;bgm.play().catch(()=>{})}}
+function musicStop(){bgm.pause()}
+function duck(){if(!musicOn)return;bgm.volume=.08;setTimeout(()=>bgm.volume=.22,900)}
+function drawMutes(){$('muteM').textContent=musicOn?'🎵':'🚫';$('muteS').textContent=sfxOn?'🔊':'🔇';
+  $('muteM').setAttribute('aria-pressed',String(musicOn));$('muteS').setAttribute('aria-pressed',String(sfxOn))}
+$('music').onchange=e=>{musicOn=e.target.checked;setPref('music',musicOn)};
+$('sfx').onchange=e=>{sfxOn=e.target.checked;setPref('sfx',sfxOn)};
+$('muteM').onclick=()=>{musicOn=!musicOn;setPref('music',musicOn);$('music').checked=musicOn;musicOn?musicPlay():musicStop();drawMutes()};
+$('muteS').onclick=()=>{sfxOn=!sfxOn;setPref('sfx',sfxOn);$('sfx').checked=sfxOn;if(!sfxOn)chargeStop();drawMutes()};
 
 /* ── camera + head tilt ── */
 let stream=null,landmarker=null,camOn=false,raf=0,lastVideoTime=-1;
@@ -174,13 +207,13 @@ function loop(){const v=$('video');
 const T_ON=14,T_OFF=6,HOLD=450;let face=false,leanSide=null,leanStart=0,needCenter=false;
 function onTilt(){const side=swap?-smooth:smooth;
   const pos=Math.max(-1,Math.min(1,-side/30));$('meter').querySelector('b').style.left=`calc(${50+pos*45}% - 14px)`;
-  if(!face){setLean(null);$('hint').textContent=locked?'':'Show your face to the camera';return}
+  if(!face){setLean(null);chargeStop();$('hint').textContent=locked?'':'Show your face to the camera';return}
   if(locked)return;
   if(needCenter){if(Math.abs(side)<T_OFF)needCenter=false;else{$('hint').textContent='Straighten up';return}}
   const want=side>T_ON?'l':side<-T_ON?'r':null;
-  if(want!==leanSide){leanSide=want;leanStart=performance.now()}
+  if(want!==leanSide){leanSide=want;leanStart=performance.now();chargeStop();if(want){tick();chargeStart()}}
   setLean(want);
-  if(want){$('hint').textContent='Hold it…';if(performance.now()-leanStart>HOLD){needCenter=true;choose(want)}}
+  if(want){$('hint').textContent='Hold it…';if(performance.now()-leanStart>HOLD){chargeStop();needCenter=true;choose(want)}}
   else $('hint').textContent='Tilt your head toward the matching word'}
 function setLean(s){$('wl').classList.toggle('lean',s==='l');$('wr').classList.toggle('lean',s==='r')}
 
@@ -195,26 +228,27 @@ function drawRound(){const R=rounds[ri];locked=false;answer=R.side;
   ['wl','wr'].forEach(id=>$(id).classList.remove('right','wrong','lean'));
   $('dots').innerHTML=rounds.map((_,i)=>`<i class="${results[i]===true?'ok':results[i]===false?'no':''}"></i>`).join('');
   $('score').textContent=`${score} / ${rounds.length}`;
-  $('hint').textContent=camOn?'Tilt your head toward the matching word':'Tap the matching word'}
-function choose(side){if(locked)return;locked=true;const el=$(side==='l'?'wl':'wr');
+  $('hint').textContent=camOn?'Tilt your head toward the matching word':'Tap the matching word';pop()}
+function choose(side){if(locked)return;locked=true;const el=$(side==='l'?'wl':'wr');chargeStop();whoosh();duck();
   if(side===answer){el.classList.add('right');yay();score++;results[ri]=true;$('hint').textContent='Yes!'}
   else{el.classList.add('wrong');$(answer==='l'?'wl':'wr').classList.add('right');nope();results[ri]=false;$('hint').textContent='This one matches'}
   $('score').textContent=`${score} / ${rounds.length}`;
   setTimeout(()=>{ri++;if(ri<rounds.length)drawRound();else finish()},side===answer?1100:1800)}
 $('wl').onclick=()=>choose('l');$('wr').onclick=()=>choose('r');
 function finish(){const stars=score>=9?3:score>=6?2:1;$('doneStars').textContent='⭐'.repeat(stars);
-  $('doneTitle').textContent=`You matched ${score} of ${rounds.length}!`;show('done');yay()}
+  $('doneTitle').textContent=`You matched ${score} of ${rounds.length}!`;show('done');fanfare()}
 function show(id){['start','game','done'].forEach(s=>$(s).hidden=s!==id)}
 
-$('go').onclick=async()=>{$('err').hidden=true;show('game');newGame();
+$('go').onclick=async()=>{$('err').hidden=true;ac();drawMutes();musicPlay();show('game');newGame();
   const want=$('useCam').checked;$('nocam').hidden=want;$('meter').hidden=!want;
   if(want&&!camOn){$('hint').textContent='Starting the camera…';
     try{await startCamera();drawRound()}
     catch(e){stopCamera();$('nocam').hidden=false;$('meter').hidden=true;
       $('hint').textContent=e&&e.name==='NotAllowedError'?'Camera blocked. Tap a word instead.':'Camera unavailable. Tap a word instead.'}}};
-$('quit').onclick=()=>{stopCamera();show('start')};
-$('again').onclick=()=>{show('game');newGame()};
-$('home').onclick=()=>{stopCamera();show('start')};
+$('quit').onclick=()=>{chargeStop();stopCamera();musicStop();show('start')};
+$('again').onclick=()=>{musicPlay();show('game');newGame()};
+$('home').onclick=()=>{stopCamera();musicStop();show('start')};
+document.addEventListener('visibilitychange',()=>{if(document.hidden){musicStop();chargeStop()}else if(!$('game').hidden)musicPlay()});
 if(!window.isSecureContext||!navigator.mediaDevices){$('err').hidden=false;
   $('err').textContent='The camera only works when this page is opened from an https:// address. Tapping still works.';$('useCam').checked=false}
 </script>
