@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pinch &amp; Build</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: the child's mirrored camera fills the screen; picture and sound boxes float at the top, big letter tiles along the bottom; a hand pointer follows the index finger */
+:root{
+  --paper:#EEF4FA; --card:#FFFFFF; --ink:#1B2A4E; --muted:#5B6A8C; --line:#D3DEEC; --soft:#E2EBF6;
+  --accent:#3B7FEE; --good:#1E9A60; --bad:#E0483A; --sun:#FFBE2E; --on:#FFFFFF;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif; --read:"Andika","Comic Sans MS",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{--paper:#111A2E;--card:#1B2643;--ink:#EDF2FB;--muted:#9EABC9;--line:#2C3A5E;--soft:#223052;--accent:#6A9FFF;--good:#3CC184;--bad:#FF6B5C;--on:#0E1528;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--read);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+[hidden]{display:none!important}
+h1{font-family:var(--display);font-weight:800;margin:0;line-height:1.05}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.btn{min-height:56px;border:0;border-radius:18px;padding:0 24px;font-family:var(--display);font-weight:800;font-size:1.2rem;background:var(--accent);color:var(--on);box-shadow:0 5px 0 rgba(0,0,0,.15)}
+.btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--line)}
+.iconbtn{width:52px;height:52px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-size:1.4rem;flex:none}
+
+/* start */
+#start{align-items:center;gap:14px;overflow:auto;text-align:center;touch-action:pan-y}
+#start h1{font-size:clamp(2.4rem,7vw,3.8rem)}
+#start h1 span{color:var(--accent)}
+.how{max-width:680px;color:var(--muted);font-size:1.1rem;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:960px}
+.chip{min-height:46px;padding:0 16px;border-radius:99px;border:2px solid var(--line);background:var(--card);font-family:var(--display);font-weight:600;font-size:1rem}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.opts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;color:var(--muted)}
+.opts label{display:flex;gap:8px;align-items:center;font-size:1.05rem}
+.opts input{width:24px;height:24px}
+.note{font-size:.95rem;color:var(--muted);max-width:680px;margin:0}
+#err{color:var(--bad);font-weight:700}
+
+/* game */
+#game{padding:0}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:.42;background:#000}
+.hud{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left))}
+.hud .grow{flex:1}
+.dots{display:flex;gap:6px}
+.dots i{width:14px;height:14px;border-radius:50%;background:var(--soft);border:2px solid var(--line)}
+.dots i.ok{background:var(--good);border-color:var(--good)}
+.board{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px max(14px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;gap:clamp(14px,3vw,30px);background:color-mix(in srgb,var(--card) 88%,transparent);border-radius:28px;padding:12px 20px;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.pic{font-size:clamp(3.6rem,min(12vw,13vh),6.5rem);line-height:1}
+.slots{display:flex;gap:clamp(8px,1.6vw,14px);align-items:center}
+.slot{width:clamp(84px,min(12vw,15vh),120px);height:clamp(94px,min(13vw,17vh),132px);border-radius:22px;border:5px dashed var(--line);background:var(--card);display:grid;place-items:center;
+  font-family:var(--read);font-weight:700;font-size:clamp(2.8rem,min(6vw,8vh),4.4rem);line-height:1;transition:border-color .15s,transform .15s}
+.slot.next{border-color:var(--sun);transform:scale(1.05)}
+.slot.full{border-style:solid;border-color:var(--good)}
+.slot.quiet{color:var(--muted);font-weight:400}
+.rest{font-family:var(--read);font-weight:700;font-size:clamp(2.8rem,min(6vw,8vh),4.4rem);color:var(--muted)}
+.tiles{display:flex;gap:clamp(10px,2.2vw,22px);justify-content:center;flex-wrap:wrap}
+.tile{width:clamp(96px,min(14vw,18vh),140px);height:clamp(96px,min(14vw,18vh),140px);border-radius:26px;border:4px solid var(--ink);background:var(--card);
+  display:grid;place-items:center;font-family:var(--read);font-weight:700;font-size:clamp(3rem,min(7vw,9vh),5rem);line-height:1;color:var(--ink);box-shadow:0 8px 0 rgba(0,0,0,.2);touch-action:none;transition:transform .15s}
+.tile.vowel{background:#FFF1C9}
+.tile.hover{transform:scale(1.08);border-color:var(--accent)}
+.tile.held{position:fixed;z-index:20;pointer-events:none;transform:translate(-50%,-50%) scale(1.12);box-shadow:0 18px 30px rgba(0,0,0,.35);transition:none;margin:0}
+.tile.used{visibility:hidden}
+.tile.back{animation:shake .4s}
+@keyframes shake{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+.hint{position:relative;z-index:2;text-align:center;font-family:var(--display);font-weight:700;font-size:1.15rem;color:var(--ink);background:color-mix(in srgb,var(--card) 85%,transparent);border-radius:14px;padding:6px 14px;align-self:center}
+#cursor{position:fixed;z-index:30;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:6px solid var(--accent);background:rgba(255,255,255,.25);pointer-events:none;transition:width .1s,height .1s,margin .1s;display:grid;place-items:center}
+#cursor.pinch{width:34px;height:34px;margin:-17px 0 0 -17px;background:var(--accent)}
+#cursor svg{position:absolute;inset:-10px;width:calc(100% + 20px);height:calc(100% + 20px);transform:rotate(-90deg)}
+#cursor circle{fill:none;stroke:var(--sun);stroke-width:6;stroke-linecap:round}
+.word{font-family:var(--read);font-weight:700;font-size:clamp(2.6rem,6vw,4rem);color:var(--good)}
+.burst{position:fixed;z-index:25;pointer-events:none;font-size:2.2rem;animation:burst .9s ease-out forwards}
+@keyframes burst{from{transform:translate(-50%,-50%) scale(.4);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2);opacity:0}}
+#done{align-items:center;justify-content:center;gap:16px;text-align:center}
+#done .big{font-size:4rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<section class="screen" id="start">
+  <h1>Pinch <span>&amp;</span> Build</h1>
+  <p class="how">Hold up your hand. Pinch your thumb and pointer finger to grab a letter, move it to the next box, then open your fingers to drop it.</p>
+  <div class="chips" id="units"></div>
+  <div class="chips" id="sets"></div>
+  <div class="opts">
+    <label><input type="checkbox" id="useCam" checked> Use the camera</label>
+    <label><input type="checkbox" id="easy"> Easy grab (hover instead of pinch)</label>
+    <label><input type="checkbox" id="music" checked> Music</label>
+    <label><input type="checkbox" id="sfx" checked> Sound effects</label>
+  </div>
+  <button class="btn" id="go">Start ▶</button>
+  <p id="err" hidden></p>
+  <p class="note">Works best with good light, the tablet standing up, and your hand about an arm's length away. You can also drag letters with a finger.</p>
+  <p class="note">The camera picture stays on this tablet. Nothing is recorded or uploaded. Hand tracking runs on the tablet itself. Music: “Happy Ukulele” by AtlasAudio, from Pixabay.</p>
+</section>
+
+<section class="screen" id="game" hidden>
+  <video id="video" playsinline muted autoplay></video>
+  <div class="hud">
+    <button class="iconbtn" id="quit" aria-label="Back to start">✕</button>
+    <div class="grow"><div class="dots" id="dots"></div></div>
+    <button class="iconbtn" id="muteM" aria-label="Music on or off">🎵</button>
+    <button class="iconbtn" id="muteS" aria-label="Sound effects on or off">🔊</button>
+  </div>
+  <div class="board">
+    <div class="top"><div class="pic" id="pic"></div><div class="slots" id="slots"></div></div>
+    <div class="hint" id="hint">Get ready…</div>
+    <div class="tiles" id="tiles"></div>
+  </div>
+  <div id="cursor" hidden><svg viewBox="0 0 36 36"><circle id="ring" cx="18" cy="18" r="16" stroke-dasharray="0 101"/></svg></div>
+</section>
+
+<section class="screen" id="done" hidden>
+  <div class="big" id="doneStars"></div>
+  <h1 id="doneTitle"></h1>
+  <div class="opts"><button class="btn ghost" id="again">Play again</button><button class="btn" id="home">Choose words</button></div>
+</section>
+<audio id="bgm" src="../music.mp3" loop preload="auto"></audio>
+
+<script type="module">
+/* Guided Phonics picture words (same lists as Sound Trail) */
+const UNITS=/*WORDS*/[{"u":1,"name":"Letter Sounds","sets":[{"t":"s a t p","words":[{"w":"sun","e":"☀️","g":["s"],"first":true},{"w":"apple","e":"🍎","g":["a"],"first":true},{"w":"tiger","e":"🐯","g":["t"],"first":true},{"w":"pig","e":"🐷","g":["p"],"first":true}]},{"t":"i n m d","words":[{"w":"insect","e":"🐞","g":["i"],"first":true},{"w":"nose","e":"👃","g":["n"],"first":true},{"w":"moon","e":"🌙","g":["m"],"first":true},{"w":"dog","e":"🐶","g":["d"],"first":true}]},{"t":"g o c k","words":[{"w":"gift","e":"🎁","g":["g"],"first":true},{"w":"octopus","e":"🐙","g":["o"],"first":true},{"w":"cat","e":"🐱","g":["c"],"first":true},{"w":"kite","e":"🪁","g":["k"],"first":true}]},{"t":"e u r h","words":[{"w":"egg","e":"🥚","g":["e"],"first":true},{"w":"umbrella","e":"☂️","g":["u"],"first":true},{"w":"rabbit","e":"🐰","g":["r"],"first":true},{"w":"hat","e":"🎩","g":["h"],"first":true}]},{"t":"b f l j","words":[{"w":"ball","e":"⚽","g":["b"],"first":true},{"w":"fish","e":"🐟","g":["f"],"first":true},{"w":"lion","e":"🦁","g":["l"],"first":true},{"w":"juice","e":"🧃","g":["j"],"first":true}]},{"t":"v w y z qu","words":[{"w":"van","e":"🚐","g":["v"],"first":true},{"w":"watermelon","e":"🍉","g":["w"],"first":true},{"w":"yo-yo","e":"🪀","g":["y"],"first":true},{"w":"zebra","e":"🦓","g":["z"],"first":true},{"w":"queen","e":"👑","g":["qu"],"first":true}]}]},{"u":2,"name":"CVC Words","sets":[{"t":"Short a","words":[{"w":"cat","e":"🐱","g":["c","a","t"]},{"w":"hat","e":"🎩","g":["h","a","t"]},{"w":"bat","e":"🦇","g":["b","a","t"]},{"w":"map","e":"🗺️","g":["m","a","p"]},{"w":"pan","e":"🍳","g":["p","a","n"]},{"w":"van","e":"🚐","g":["v","a","n"]},{"w":"can","e":"🥫","g":["c","a","n"]},{"w":"rat","e":"🐀","g":["r","a","t"]},{"w":"bag","e":"👜","g":["b","a","g"]},{"w":"cap","e":"🧢","g":["c","a","p"]}]},{"t":"Short i","words":[{"w":"pig","e":"🐷","g":["p","i","g"]},{"w":"pin","e":"📌","g":["p","i","n"]},{"w":"lip","e":"👄","g":["l","i","p"]},{"w":"bin","e":"🗑️","g":["b","i","n"]},{"w":"kid","e":"🧒","g":["k","i","d"]},{"w":"dig","e":"⛏️","g":["d","i","g"]},{"w":"fin","e":"🦈","g":["f","i","n"]},{"w":"zip","e":"🤐","g":["z","i","p"]}]},{"t":"Short o","words":[{"w":"dog","e":"🐶","g":["d","o","g"]},{"w":"log","e":"🪵","g":["l","o","g"]},{"w":"pot","e":"🍲","g":["p","o","t"]},{"w":"fox","e":"🦊","g":["f","o","x"]},{"w":"box","e":"📦","g":["b","o","x"]},{"w":"hot","e":"🔥","g":["h","o","t"]},{"w":"rod","e":"🎣","g":["r","o","d"]},{"w":"mop","e":"🧹","g":["m","o","p"]}]},{"t":"Short u","words":[{"w":"bus","e":"🚌","g":["b","u","s"]},{"w":"sun","e":"☀️","g":["s","u","n"]},{"w":"cup","e":"☕","g":["c","u","p"]},{"w":"bug","e":"🐛","g":["b","u","g"]},{"w":"nut","e":"🥜","g":["n","u","t"]},{"w":"tub","e":"🛁","g":["t","u","b"]},{"w":"hug","e":"🤗","g":["h","u","g"]},{"w":"mud","e":"🟫","g":["m","u","d"]}]},{"t":"Short e","words":[{"w":"bed","e":"🛏️","g":["b","e","d"]},{"w":"hen","e":"🐔","g":["h","e","n"]},{"w":"pen","e":"🖊️","g":["p","e","n"]},{"w":"net","e":"🥅","g":["n","e","t"]},{"w":"web","e":"🕸️","g":["w","e","b"]},{"w":"jet","e":"✈️","g":["j","e","t"]},{"w":"ten","e":"🔟","g":["t","e","n"]},{"w":"leg","e":"🦵","g":["l","e","g"]}]}]},{"u":3,"name":"Digraphs & Blends","sets":[{"t":"sh","words":[{"w":"ship","e":"🚢","g":["sh","i","p"]},{"w":"fish","e":"🐟","g":["f","i","sh"]},{"w":"shop","e":"🏪","g":["sh","o","p"]},{"w":"shell","e":"🐚","g":["sh","e","ll"]},{"w":"dish","e":"🍽️","g":["d","i","sh"]},{"w":"cash","e":"💵","g":["c","a","sh"]},{"w":"shed","e":"🛖","g":["sh","e","d"]}]},{"t":"th","words":[{"w":"bath","e":"🛁","g":["b","a","th"]},{"w":"math","e":"🧮","g":["m","a","th"]},{"w":"path","e":"🛤️","g":["p","a","th"]}]},{"t":"ch","words":[{"w":"chick","e":"🐤","g":["ch","i","ck"]},{"w":"chip","e":"🍟","g":["ch","i","p"]},{"w":"chop","e":"🪓","g":["ch","o","p"]},{"w":"rich","e":"💰","g":["r","i","ch"]},{"w":"chess","e":"♟️","g":["ch","e","ss"]},{"w":"check","e":"✅","g":["ch","e","ck"]}]},{"t":"ck","words":[{"w":"duck","e":"🦆","g":["d","u","ck"]},{"w":"sock","e":"🧦","g":["s","o","ck"]},{"w":"rock","e":"🪨","g":["r","o","ck"]},{"w":"lock","e":"🔒","g":["l","o","ck"]},{"w":"kick","e":"⚽","g":["k","i","ck"]},{"w":"sack","e":"🛍️","g":["s","a","ck"]}]},{"t":"wh and qu","words":[{"w":"quiz","e":"❓","g":["qu","i","z"]},{"w":"quack","e":"🦆","g":["qu","a","ck"]},{"w":"quick","e":"⚡","g":["qu","i","ck"]}]},{"t":"ff ll ss zz","words":[{"w":"bell","e":"🔔","g":["b","e","ll"]},{"w":"doll","e":"🪆","g":["d","o","ll"]},{"w":"hill","e":"⛰️","g":["h","i","ll"]},{"w":"kiss","e":"💋","g":["k","i","ss"]},{"w":"buzz","e":"🐝","g":["b","u","zz"]},{"w":"fizz","e":"🥤","g":["f","i","zz"]},{"w":"puff","e":"💨","g":["p","u","ff"]}]},{"t":"l blends","words":[{"w":"flag","e":"🚩","g":["f","l","a","g"]},{"w":"clap","e":"👏","g":["c","l","a","p"]},{"w":"sled","e":"🛷","g":["s","l","e","d"]},{"w":"plug","e":"🔌","g":["p","l","u","g"]},{"w":"clock","e":"🕰️","g":["c","l","o","ck"]},{"w":"block","e":"🧱","g":["b","l","o","ck"]}]},{"t":"r blends","words":[{"w":"crab","e":"🦀","g":["c","r","a","b"]},{"w":"frog","e":"🐸","g":["f","r","o","g"]},{"w":"drum","e":"🥁","g":["d","r","u","m"]},{"w":"truck","e":"🚚","g":["t","r","u","ck"]},{"w":"brick","e":"🧱","g":["b","r","i","ck"]},{"w":"drip","e":"💧","g":["d","r","i","p"]}]},{"t":"s blends","words":[{"w":"stop","e":"🛑","g":["s","t","o","p"]},{"w":"snack","e":"🍿","g":["s","n","a","ck"]},{"w":"swim","e":"🏊","g":["s","w","i","m"]},{"w":"sniff","e":"👃","g":["s","n","i","ff"]},{"w":"step","e":"🪜","g":["s","t","e","p"]}]}]},{"u":4,"name":"Silent e","sets":[{"t":"a_e","words":[{"w":"cake","e":"🎂","g":["c","a_","k","e_"]},{"w":"game","e":"🎮","g":["g","a_","m","e_"]},{"w":"snake","e":"🐍","g":["s","n","a_","k","e_"]},{"w":"plane","e":"✈️","g":["p","l","a_","n","e_"]},{"w":"grape","e":"🍇","g":["g","r","a_","p","e_"]},{"w":"vase","e":"🏺","g":["v","a_","s","e_"]}]},{"t":"i_e","words":[{"w":"kite","e":"🪁","g":["k","i_","t","e_"]},{"w":"bike","e":"🚲","g":["b","i_","k","e_"]},{"w":"hive","e":"🐝","g":["h","i_","v","e_"]},{"w":"slide","e":"🛝","g":["s","l","i_","d","e_"]},{"w":"smile","e":"😀","g":["s","m","i_","l","e_"]},{"w":"dime","e":"🪙","g":["d","i_","m","e_"]}]},{"t":"o_e","words":[{"w":"bone","e":"🦴","g":["b","o_","n","e_"]},{"w":"rose","e":"🌹","g":["r","o_","s","e_"]},{"w":"nose","e":"👃","g":["n","o_","s","e_"]},{"w":"home","e":"🏠","g":["h","o_","m","e_"]},{"w":"rope","e":"🪢","g":["r","o_","p","e_"]},{"w":"globe","e":"🌍","g":["g","l","o_","b","e_"]},{"w":"cone","e":"🍦","g":["c","o_","n","e_"]}]},{"t":"u_e","words":[{"w":"cube","e":"🧊","g":["c","u_","b","e_"]},{"w":"tube","e":"🧪","g":["t","u_","b","e_"]},{"w":"flute","e":"🪈","g":["f","l","u_","t","e_"]},{"w":"mule","e":"🫏","g":["m","u_","l","e_"]},{"w":"cute","e":"🥰","g":["c","u_","t","e_"]}]},{"t":"Mixed silent e","words":[{"w":"cake","e":"🎂","g":["c","a_","k","e_"]},{"w":"kite","e":"🪁","g":["k","i_","t","e_"]},{"w":"bone","e":"🦴","g":["b","o_","n","e_"]},{"w":"cube","e":"🧊","g":["c","u_","b","e_"]}]}]},{"u":5,"name":"Ending Blends & R-Controlled","sets":[{"t":"Ending blends","words":[{"w":"tent","e":"⛺","g":["t","e","n","t"]},{"w":"nest","e":"🪺","g":["n","e","s","t"]},{"w":"hand","e":"✋","g":["h","a","n","d"]},{"w":"mask","e":"🎭","g":["m","a","s","k"]},{"w":"lamp","e":"💡","g":["l","a","m","p"]},{"w":"gift","e":"🎁","g":["g","i","f","t"]}]},{"t":"-all","words":[{"w":"ball","e":"⚽","g":["b","all"]},{"w":"wall","e":"🧱","g":["w","all"]},{"w":"mall","e":"🏬","g":["m","all"]},{"w":"fall","e":"🍂","g":["f","all"]},{"w":"call","e":"📞","g":["c","all"]}]},{"t":"ng and nk","words":[{"w":"ring","e":"💍","g":["r","i","ng"]},{"w":"king","e":"🤴","g":["k","i","ng"]},{"w":"skunk","e":"🦨","g":["s","k","u","nk"]},{"w":"sink","e":"🚰","g":["s","i","nk"]},{"w":"pink","e":"🩷","g":["p","i","nk"]},{"w":"wink","e":"😉","g":["w","i","nk"]}]},{"t":"ar","words":[{"w":"car","e":"🚗","g":["c","ar"]},{"w":"star","e":"⭐","g":["s","t","ar"]},{"w":"jar","e":"🫙","g":["j","ar"]},{"w":"shark","e":"🦈","g":["sh","ar","k"]},{"w":"yarn","e":"🧶","g":["y","ar","n"]},{"w":"park","e":"🏞️","g":["p","ar","k"]}]},{"t":"or","words":[{"w":"corn","e":"🌽","g":["c","or","n"]},{"w":"fork","e":"🍴","g":["f","or","k"]},{"w":"horn","e":"📯","g":["h","or","n"]},{"w":"storm","e":"⛈️","g":["s","t","or","m"]},{"w":"torch","e":"🔦","g":["t","or","ch"]}]},{"t":"er ir ur","words":[{"w":"bird","e":"🐦","g":["b","ir","d"]},{"w":"girl","e":"👧","g":["g","ir","l"]},{"w":"shirt","e":"👕","g":["sh","ir","t"]},{"w":"fern","e":"🌿","g":["f","er","n"]},{"w":"surf","e":"🏄","g":["s","ur","f"]},{"w":"church","e":"⛪","g":["ch","ur","ch"]}]},{"t":"kn wr mb ph","words":[{"w":"knot","e":"🪢","g":["kn","o","t"]},{"w":"knife","e":"🔪","g":["kn","i_","f","e_"]},{"w":"write","e":"✍️","g":["wr","i_","t","e_"]},{"w":"lamb","e":"🐑","g":["l","a","mb"]},{"w":"thumb","e":"👍","g":["th","u","mb"]},{"w":"phone","e":"📱","g":["ph","o_","n","e_"]}]}]},{"u":6,"name":"Vowel Teams","sets":[{"t":"ai and ay","words":[{"w":"rain","e":"🌧️","g":["r","ai","n"]},{"w":"snail","e":"🐌","g":["s","n","ai","l"]},{"w":"train","e":"🚆","g":["t","r","ai","n"]},{"w":"mail","e":"📬","g":["m","ai","l"]},{"w":"hay","e":"🌾","g":["h","ay"]}]},{"t":"ee and ea","words":[{"w":"tree","e":"🌳","g":["t","r","ee"]},{"w":"bee","e":"🐝","g":["b","ee"]},{"w":"sheep","e":"🐑","g":["sh","ee","p"]},{"w":"leaf","e":"🍃","g":["l","ea","f"]},{"w":"seal","e":"🦭","g":["s","ea","l"]},{"w":"peach","e":"🍑","g":["p","ea","ch"]}]},{"t":"oa ow oe","words":[{"w":"boat","e":"⛵","g":["b","oa","t"]},{"w":"goat","e":"🐐","g":["g","oa","t"]},{"w":"soap","e":"🧼","g":["s","oa","p"]},{"w":"snow","e":"❄️","g":["s","n","ow"]},{"w":"bow","e":"🎀","g":["b","ow"]},{"w":"toe","e":"🦶","g":["t","oe"]}]},{"t":"ie igh y","words":[{"w":"pie","e":"🥧","g":["p","ie"]},{"w":"tie","e":"👔","g":["t","ie"]},{"w":"light","e":"💡","g":["l","igh","t"]},{"w":"night","e":"🌙","g":["n","igh","t"]},{"w":"fly","e":"🪰","g":["f","l","y"]},{"w":"sky","e":"🌌","g":["s","k","y"]}]},{"t":"oo ue ew ui","words":[{"w":"moon","e":"🌙","g":["m","oo","n"]},{"w":"spoon","e":"🥄","g":["s","p","oo","n"]},{"w":"boot","e":"👢","g":["b","oo","t"]},{"w":"glue","e":"🧴","g":["g","l","ue"]},{"w":"screw","e":"🔩","g":["s","c","r","ew"]},{"w":"fruit","e":"🍎","g":["f","r","ui","t"]},{"w":"book","e":"📖","g":["b","oo","k"]}]},{"t":"oi oy ou ow","words":[{"w":"coin","e":"🪙","g":["c","oi","n"]},{"w":"boy","e":"👦","g":["b","oy"]},{"w":"toy","e":"🧸","g":["t","oy"]},{"w":"cloud","e":"☁️","g":["c","l","ou","d"]},{"w":"cow","e":"🐄","g":["c","ow"]},{"w":"owl","e":"🦉","g":["ow","l"]},{"w":"crown","e":"👑","g":["c","r","ow","n"]}]},{"t":"au and aw","words":[{"w":"saw","e":"🪚","g":["s","aw"]},{"w":"paw","e":"🐾","g":["p","aw"]},{"w":"straw","e":"🥤","g":["s","t","r","aw"]},{"w":"hawk","e":"🦅","g":["h","aw","k"]},{"w":"yawn","e":"🥱","g":["y","aw","n"]}]}]}];
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=(a,n)=>shuffle(a).slice(0,n);
+const disp=g=>g.endsWith('_')?g.slice(0,-1):g;
+const store=(k,v)=>{try{if(v===undefined)return localStorage.getItem('pinch.'+k);localStorage.setItem('pinch.'+k,v)}catch(e){return null}};
+let unit=+(store('unit')||2),setIdx=store('set')==null||store('set')===''?null:+store('set');
+
+/* ── start screen ── */
+function drawChips(){const U=UNITS.find(x=>x.u===unit)||UNITS[0];unit=U.u;if(setIdx!=null&&!U.sets[setIdx])setIdx=null;
+  $('units').innerHTML='';UNITS.forEach(x=>{const b=document.createElement('button');b.className='chip';b.textContent='Unit '+x.u;b.setAttribute('aria-pressed',String(x.u===unit));
+    b.onclick=()=>{unit=x.u;setIdx=null;store('unit',unit);store('set','');drawChips()};$('units').append(b)});
+  $('sets').innerHTML='';const all=document.createElement('button');all.className='chip';all.textContent='Whole unit';all.setAttribute('aria-pressed',String(setIdx==null));
+  all.onclick=()=>{setIdx=null;store('set','');drawChips()};$('sets').append(all);
+  U.sets.forEach((s,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=s.t;b.setAttribute('aria-pressed',String(i===setIdx));
+    b.onclick=()=>{setIdx=i;store('set',i);drawChips()};$('sets').append(b)})}
+drawChips();
+
+/* ── sound ── */
+let sfxOn=store('sfx')!=='0',musicOn=store('music')!=='0';$('sfx').checked=sfxOn;$('music').checked=musicOn;
+let easy=store('easy')==='1';$('easy').checked=easy;$('easy').onchange=e=>{easy=e.target.checked;store('easy',easy?'1':'0')};
+let actx=null;const ac=()=>{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx};
+function tone(fs,dur=.1,type='sine',gain=.14){if(!sfxOn)return;try{const a=ac(),t0=a.currentTime;fs.forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;const st=t0+i*dur;
+  g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(gain,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+dur*2);o.connect(g).connect(a.destination);o.start(st);o.stop(st+dur*2.2)})}catch(e){}}
+const yay=()=>tone([660,880,1320],.09),nope=()=>tone([230,180],.13,'triangle',.1),grabS=()=>tone([440,660],.04,'sine',.1),dropS=()=>tone([700,520],.05,'sine',.1),fanfare=()=>tone([523,659,784,1047,784,1047,1319],.12,'triangle',.13);
+const bgm=$('bgm');bgm.volume=.2;const musicPlay=()=>{if(musicOn)bgm.play().catch(()=>{})},musicStop=()=>bgm.pause();
+$('music').onchange=e=>{musicOn=e.target.checked;store('music',musicOn?'1':'0')};$('sfx').onchange=e=>{sfxOn=e.target.checked;store('sfx',sfxOn?'1':'0')};
+const drawMutes=()=>{$('muteM').textContent=musicOn?'🎵':'🚫';$('muteS').textContent=sfxOn?'🔊':'🔇'};
+$('muteM').onclick=()=>{musicOn=!musicOn;store('music',musicOn?'1':'0');$('music').checked=musicOn;musicOn?musicPlay():musicStop();drawMutes()};
+$('muteS').onclick=()=>{sfxOn=!sfxOn;store('sfx',sfxOn?'1':'0');$('sfx').checked=sfxOn;drawMutes()};
+
+/* ── game state ── */
+let rounds=[],ri=0,cur=null,held=null,results=[],locked=false;
+function newGame(){const U=UNITS.find(x=>x.u===unit);const pool=setIdx==null?U.sets.flatMap(s=>s.words):U.sets[setIdx].words;
+  const seen=new Set();const uniq=pool.filter(w=>!seen.has(w.e)&&seen.add(w.e));rounds=pick(uniq,Math.min(6,uniq.length));ri=0;results=[];drawRound()}
+function drawRound(){const w=rounds[ri];locked=false;held=null;
+  const first=!!w.first;const g=first?[w.g[0]]:w.g;cur={w,g,filled:0,first};
+  $('pic').textContent=w.e;
+  $('slots').innerHTML='';g.forEach((x,i)=>{const s=document.createElement('div');s.className='slot'+(x==='e_'?' quiet':'')+(i===0?' next':'');$('slots').append(s)});
+  if(first){const r=document.createElement('span');r.className='rest';r.textContent=w.w.slice(w.g[0].length);$('slots').append(r)}
+  const have=new Set(g.map(disp));const extra=pick('abcdefghijklmnoprstuvwxyz'.split('').filter(x=>!have.has(x)),first?3:Math.max(2,5-g.length));
+  $('tiles').innerHTML='';shuffle([...g.map((x,i)=>({x,i})),...extra.map(x=>({x,i:-1}))]).forEach(t=>{const b=document.createElement('div');b.className='tile'+('aeiou'.includes(disp(t.x))?' vowel':'');
+    b.textContent=disp(t.x);b._x=disp(t.x);b.addEventListener('pointerdown',e=>touchGrab(e,b));$('tiles').append(b)});
+  $('dots').innerHTML=rounds.map((_,i)=>`<i class="${results[i]?'ok':''}"></i>`).join('');
+  $('hint').textContent=handOn?(easy?'Hold your hand over a letter to grab it':'Pinch a letter to grab it'):'Drag a letter into the next box'}
+const nextSlot=()=>$('slots').children[cur.filled];
+function overSlots(x,y){const r=$('slots').getBoundingClientRect();const pad=60;return x>r.left-pad&&x<r.right+pad&&y>r.top-pad&&y<r.bottom+pad}
+function tileAt(x,y){let best=null,bd=1e9;for(const t of $('tiles').children){if(t.classList.contains('used'))continue;const r=t.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2,d=Math.hypot(cx-x,cy-y);if(d<r.width*.8&&d<bd){bd=d;best=t}}return best}
+function grab(t){if(locked||held)return;held=t;const r=t.getBoundingClientRect();t._home=r;t.classList.add('held');t.style.width=r.width+'px';t.style.height=r.height+'px';grabS()}
+function moveHeld(x,y){if(!held)return;held.style.left=x+'px';held.style.top=y+'px'}
+function release(x,y){const t=held;if(!t)return;held=null;t.classList.remove('held');t.style.left=t.style.top=t.style.width=t.style.height='';
+  if(!overSlots(x,y))return;const want=disp(cur.g[cur.filled]);
+  if(t._x===want){const s=nextSlot();s.textContent=t._x;s.classList.remove('next');s.classList.add('full');t.classList.add('used');cur.filled++;dropS();burst(s);
+    if(cur.filled<cur.g.length)nextSlot().classList.add('next');else win()}
+  else{t.classList.remove('back');void t.offsetWidth;t.classList.add('back');nope();$('hint').textContent=`That's “${t._x}”. Which sound comes next?`}}
+function win(){locked=true;yay();results[ri]=true;$('hint').innerHTML='';const w=document.createElement('span');w.className='word';w.textContent=cur.w.w+'!';$('hint').append(w);
+  setTimeout(()=>{ri++;if(ri<rounds.length)drawRound();else finish()},1600)}
+function finish(){$('doneStars').textContent='⭐⭐⭐';$('doneTitle').textContent=`You built ${rounds.length} words!`;show('done');fanfare()}
+function burst(el){const r=el.getBoundingClientRect();['⭐','✨','🌟','💫','⭐','✨'].forEach((e,k)=>{const a=k/6*Math.PI*2;const s=document.createElement('span');s.className='burst';s.textContent=e;
+  s.style.left=(r.left+r.width/2)+'px';s.style.top=(r.top+r.height/2)+'px';s.style.setProperty('--dx',Math.cos(a)*90+'px');s.style.setProperty('--dy',Math.sin(a)*70+'px');document.body.append(s);setTimeout(()=>s.remove(),900)})}
+/* finger / mouse fallback */
+function touchGrab(e,t){if(locked||t.classList.contains('used'))return;e.preventDefault();grab(t);moveHeld(e.clientX,e.clientY);
+  const mv=ev=>moveHeld(ev.clientX,ev.clientY);const up=ev=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);release(ev.clientX,ev.clientY)};
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up)}
+
+/* ── hand tracking ── */
+let stream=null,landmarker=null,handOn=false,raf=0,lastT=-1,px=0,py=0,pinched=false,dwell=null;
+async function startCamera(){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});
+  const v=$('video');v.srcObject=stream;await v.play();
+  const {HandLandmarker,FilesetResolver}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+  const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const opts=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:d},runningMode:'VIDEO',numHands:1});
+  try{landmarker=await HandLandmarker.createFromOptions(files,opts('GPU'))}catch(e){landmarker=await HandLandmarker.createFromOptions(files,opts('CPU'))}
+  handOn=true;$('cursor').hidden=false;loop()}
+function stopCamera(){cancelAnimationFrame(raf);handOn=false;$('cursor').hidden=true;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null}
+/* map a camera point to the screen the way the mirrored, cover-fitted video shows it, with a little extra reach toward the edges */
+function toScreen(p){const v=$('video'),W=innerWidth,H=innerHeight,vw=v.videoWidth||640,vh=v.videoHeight||480;const s=Math.max(W/vw,H/vh),dw=vw*s,dh=vh*s;
+  let x=W-(p.x*dw+(W-dw)/2),y=p.y*dh+(H-dh)/2;const gain=1.35;x=W/2+(x-W/2)*gain;y=H/2+(y-H/2)*gain;
+  return [Math.max(0,Math.min(W,x)),Math.max(0,Math.min(H,y))]}
+function loop(){const v=$('video');
+  if(landmarker&&v.readyState>=2&&v.currentTime!==lastT){lastT=v.currentTime;const r=landmarker.detectForVideo(v,performance.now());const lm=r.landmarks&&r.landmarks[0];
+    if(lm){const mid={x:(lm[4].x+lm[8].x)/2,y:(lm[4].y+lm[8].y)/2};const [x,y]=toScreen(easy?lm[8]:mid);px=px*.45+x*.55;py=py*.45+y*.55;
+      const size=Math.hypot(lm[0].x-lm[9].x,lm[0].y-lm[9].y)||.1;const d=Math.hypot(lm[4].x-lm[8].x,lm[4].y-lm[8].y)/size;
+      const c=$('cursor');c.style.left=px+'px';c.style.top=py+'px';c.style.opacity=1;onHand(d)}
+    else{$('cursor').style.opacity=.3;setRing(0)}}
+  raf=requestAnimationFrame(loop)}
+function setRing(f){$('ring').setAttribute('stroke-dasharray',`${Math.round(f*101)} 101`)}
+function onHand(d){if(locked){setRing(0);return}
+  [...$('tiles').children].forEach(t=>t.classList.remove('hover'));
+  if(easy){/* hover to grab, hover over the boxes to drop */
+    const now=performance.now();
+    if(!held){const t=tileAt(px,py);if(t){t.classList.add('hover');if(!dwell||dwell.t!==t)dwell={t,s:now};const f=(now-dwell.s)/800;setRing(Math.min(1,f));if(f>=1){dwell=null;setRing(0);grab(t)}}else{dwell=null;setRing(0)}}
+    else{moveHeld(px,py);if(overSlots(px,py)){if(!dwell||dwell.t!=='slots')dwell={t:'slots',s:now};const f=(now-dwell.s)/600;setRing(Math.min(1,f));if(f>=1){dwell=null;setRing(0);release(px,py)}}else{dwell=null;setRing(0)}}
+    return}
+  if(!pinched&&d<.33){pinched=true;$('cursor').classList.add('pinch');const t=tileAt(px,py);if(t)grab(t)}
+  else if(pinched&&d>.5){pinched=false;$('cursor').classList.remove('pinch');release(px,py)}
+  if(held)moveHeld(px,py);else{const t=tileAt(px,py);if(t)t.classList.add('hover')}}
+
+function show(id){['start','game','done'].forEach(s=>$(s).hidden=s!==id)}
+$('go').onclick=async()=>{$('err').hidden=true;ac();drawMutes();musicPlay();show('game');newGame();
+  if($('useCam').checked&&!handOn){$('hint').textContent='Starting the camera…';
+    try{await startCamera();drawRound()}catch(e){stopCamera();$('hint').textContent=e&&e.name==='NotAllowedError'?'Camera blocked. Drag letters with your finger instead.':'Camera unavailable. Drag letters with your finger instead.'}}};
+$('quit').onclick=()=>{stopCamera();musicStop();show('start')};
+$('again').onclick=()=>{musicPlay();show('game');newGame()};
+$('home').onclick=()=>{stopCamera();musicStop();show('start')};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)musicStop();else if(!$('game').hidden)musicPlay()});
+if(!window.isSecureContext||!navigator.mediaDevices){$('err').hidden=false;$('err').textContent='The camera only works when this page is opened from an https:// address. Dragging still works.';$('useCam').checked=false}
+</script>
+</body>
+</html>
