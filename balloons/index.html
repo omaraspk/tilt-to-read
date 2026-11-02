@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Balloon Pop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout: the child's mirrored camera fills the screen, balloons with sight words float up over it, the target word sits at the top; the index fingertip pops balloons */
+:root{
+  --paper:#EEF4FA; --card:#FFFFFF; --ink:#1B2A4E; --muted:#5B6A8C; --line:#D3DEEC; --soft:#E2EBF6;
+  --accent:#3B7FEE; --good:#1E9A60; --bad:#E0483A; --sun:#FFBE2E; --on:#FFFFFF;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif; --read:"Andika","Comic Sans MS",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{--paper:#111A2E;--card:#1B2643;--ink:#EDF2FB;--muted:#9EABC9;--line:#2C3A5E;--soft:#223052;--accent:#6A9FFF;--good:#3CC184;--bad:#FF6B5C;--on:#0E1528;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--read);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+[hidden]{display:none!important}
+h1,h2{font-family:var(--display);font-weight:800;margin:0;line-height:1.05}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.btn{min-height:58px;border:0;border-radius:18px;padding:0 28px;font-family:var(--display);font-weight:800;font-size:1.3rem;background:var(--accent);color:var(--on);box-shadow:0 5px 0 rgba(0,0,0,.15)}
+.btn.ghost{background:var(--card);color:var(--ink);border:2px solid var(--line)}
+.iconbtn{width:52px;height:52px;border-radius:16px;border:2px solid var(--line);background:var(--card);font-size:1.4rem;flex:none}
+
+/* start */
+#start{align-items:center;gap:14px;overflow:auto;text-align:center;touch-action:pan-y}
+#start h1{font-size:clamp(2.6rem,8vw,4.2rem)}
+#start h1 span{color:var(--bad)}
+.how{max-width:680px;color:var(--muted);font-size:1.1rem;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:960px}
+.chip{min-height:50px;padding:0 16px;border-radius:99px;border:2px solid var(--line);background:var(--card);font-family:var(--display);font-weight:600;font-size:1rem;display:flex;flex-direction:column;justify-content:center;line-height:1.1}
+.chip small{font-family:var(--read);font-weight:400;font-size:.78rem;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip[aria-pressed="true"] small{color:inherit;opacity:.8}
+.chip.locked{opacity:.5}
+.preview{font-family:var(--read);font-size:1.15rem;max-width:760px;margin:0}
+.opts{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;color:var(--muted)}
+.opts label{display:flex;gap:8px;align-items:center;font-size:1.05rem}
+.opts input{width:24px;height:24px}
+.note{font-size:.95rem;color:var(--muted);max-width:680px;margin:0}
+.unlock{width:min(100%,560px);display:grid;gap:6px;font-weight:700}
+.bar{height:16px;border-radius:99px;background:var(--soft);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--sun),var(--bad));border-radius:99px}
+#err{color:var(--bad);font-weight:700}
+
+/* game */
+#game{padding:0}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:.45;background:#000}
+.sky{position:absolute;inset:0;background:linear-gradient(#bfe3ff55,#ffffff00 60%)}
+.hud{position:relative;z-index:5;display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 0 max(14px,env(safe-area-inset-left))}
+.pill{background:color-mix(in srgb,var(--card) 90%,transparent);border-radius:16px;padding:6px 14px;font-family:var(--display);font-weight:800;font-size:1.3rem;box-shadow:0 4px 14px rgba(0,0,0,.15);white-space:nowrap}
+.pill.time.low{color:var(--bad);animation:tick 1s infinite}
+@keyframes tick{50%{transform:scale(1.1)}}
+.grow{flex:1}
+.target{position:relative;z-index:5;align-self:center;margin-top:8px;display:flex;align-items:center;gap:14px;background:color-mix(in srgb,var(--card) 92%,transparent);border-radius:26px;padding:8px 26px;box-shadow:0 6px 24px rgba(0,0,0,.2)}
+.target small{font-family:var(--display);font-weight:700;color:var(--muted);font-size:1.05rem}
+.target b{font-family:var(--read);font-size:clamp(3rem,min(9vw,10vh),5rem);line-height:1.05}
+.tdots{display:flex;gap:6px}
+.tdots i{width:16px;height:16px;border-radius:50%;border:3px solid var(--line)}
+.tdots i.on{background:var(--good);border-color:var(--good)}
+.target.flash{animation:flash .6s}
+@keyframes flash{30%{transform:scale(1.12)}}
+.mult{position:relative;z-index:5;align-self:center;margin-top:6px;font-family:var(--display);font-weight:800;font-size:1.3rem;color:#fff;background:var(--bad);border-radius:99px;padding:2px 16px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+#field{position:absolute;inset:0;z-index:3;overflow:hidden}
+.bal{position:absolute;left:0;top:0;will-change:transform;display:grid;place-items:center;touch-action:none}
+.bal .body{position:absolute;inset:0;border-radius:50% 50% 48% 48% / 55% 55% 45% 45%;background:radial-gradient(circle at 32% 28%,#fff9 0 9%,transparent 22%),var(--c);box-shadow:inset -10px -14px 0 rgba(0,0,0,.12)}
+.bal .body::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-8px;border:8px solid transparent;border-bottom-color:var(--c);transform:rotate(180deg)}
+.bal .str{position:absolute;left:50%;top:100%;width:2px;height:60%;background:rgba(0,0,0,.35);margin-top:8px}
+.bal .w{position:relative;font-family:var(--read);font-weight:700;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.35);line-height:1}
+.bal .deco{position:absolute;top:8%;right:6%;font-size:.38em}
+.bal.gold .body{background:radial-gradient(circle at 32% 28%,#fff 0 9%,transparent 22%),linear-gradient(135deg,#FFE27A,#F5B000 60%,#FFD84A);box-shadow:0 0 30px #FFD84A,inset -10px -14px 0 rgba(0,0,0,.1)}
+.bal.gold .w{color:#5A3B00;text-shadow:none}
+.bal.wob{animation:wob .45s}
+@keyframes wob{20%{margin-left:-14px}40%{margin-left:14px}60%{margin-left:-9px}80%{margin-left:9px}}
+.bal.no .body{filter:grayscale(.6) brightness(.9)}
+.boom{position:fixed;z-index:6;pointer-events:none;font-family:var(--display);font-weight:800;animation:boom .8s ease-out forwards;transform:translate(-50%,-50%)}
+@keyframes boom{from{opacity:1}to{opacity:0;margin-top:-70px}}
+.bit{position:fixed;z-index:6;pointer-events:none;width:14px;height:14px;border-radius:50%;animation:bit .6s ease-out forwards}
+@keyframes bit{to{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0}}
+.banner{position:fixed;left:50%;top:45%;z-index:8;transform:translate(-50%,-50%);font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,7vw,4.4rem);color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.3);pointer-events:none;animation:ban 1.4s ease-out forwards;white-space:nowrap}
+@keyframes ban{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}20%{transform:translate(-50%,-50%) scale(1.1);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-80%);opacity:0}}
+.hint{position:absolute;z-index:5;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);font-family:var(--display);font-weight:700;font-size:1.1rem;background:color-mix(in srgb,var(--card) 85%,transparent);border-radius:14px;padding:6px 14px;white-space:nowrap}
+#cursor{position:fixed;z-index:7;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:6px solid #fff;background:var(--bad);box-shadow:0 0 0 3px var(--bad),0 0 18px rgba(0,0,0,.4);pointer-events:none;display:grid;place-items:center;font-size:1.2rem}
+.trail{position:fixed;z-index:6;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:#fff;pointer-events:none;animation:fade .35s forwards}
+@keyframes fade{to{opacity:0;transform:scale(.2)}}
+.count{position:fixed;inset:0;z-index:9;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:9rem;color:#fff;text-shadow:0 6px 0 rgba(0,0,0,.3);pointer-events:none}
+
+/* done */
+#done{align-items:center;justify-content:center;gap:12px;text-align:center;overflow:auto;touch-action:pan-y}
+#done .big{font-size:4rem;letter-spacing:6px}
+#done .score{font-family:var(--display);font-weight:800;font-size:3.4rem;line-height:1}
+.record{font-family:var(--display);font-weight:800;font-size:1.6rem;color:var(--bad);animation:tick 1s infinite}
+.popped{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:760px}
+.popped span{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:4px 12px;font-size:1.3rem;font-weight:700}
+.newskin{background:var(--card);border:3px solid var(--sun);border-radius:20px;padding:10px 18px;font-weight:700;font-size:1.2rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<section class="screen" id="start">
+  <h1>Balloon <span>Pop</span> 🎈</h1>
+  <p class="how">Read the word at the top. Pop every balloon with that word using your pointer finger. Pop 5 and you get a new word! Golden balloons give bonus points and extra time.</p>
+  <div class="chips" id="groups"></div>
+  <p class="preview" id="preview"></p>
+  <div class="unlock"><span id="unlockTxt"></span><div class="bar"><i id="unlockBar"></i></div></div>
+  <div class="chips" id="skins"></div>
+  <div class="opts">
+    <label><input type="checkbox" id="useCam" checked> Use the camera</label>
+    <label><input type="checkbox" id="music" checked> Music</label>
+    <label><input type="checkbox" id="sfx" checked> Sound effects</label>
+  </div>
+  <button class="btn" id="go">Start ▶</button>
+  <p id="err" hidden></p>
+  <p class="note">Works best with good light, the tablet standing up, and the child about an arm's length away. You can also tap the balloons with a finger.</p>
+  <p class="note">The camera picture stays on this tablet. Nothing is recorded or uploaded. Hand tracking runs on the tablet itself. Music: “Happy Ukulele” by AtlasAudio, from Pixabay.</p>
+</section>
+
+<section class="screen" id="game" hidden>
+  <video id="video" playsinline muted autoplay></video>
+  <div class="sky"></div>
+  <div id="field"></div>
+  <div class="hud">
+    <button class="iconbtn" id="quit" aria-label="Back to start">✕</button>
+    <span class="pill" id="score">⭐ 0</span>
+    <span class="pill" id="lvl">Level 1</span>
+    <span class="grow"></span>
+    <span class="pill time" id="time">⏱ 60</span>
+    <button class="iconbtn" id="muteM" aria-label="Music on or off">🎵</button>
+    <button class="iconbtn" id="muteS" aria-label="Sound effects on or off">🔊</button>
+  </div>
+  <div class="target" id="target"><small>Pop</small><b id="tword"></b><div class="tdots" id="tdots"></div></div>
+  <div class="mult" id="mult" hidden></div>
+  <div class="hint" id="hint">Get ready…</div>
+  <div id="cursor" hidden>☝️</div>
+</section>
+
+<section class="screen" id="done" hidden>
+  <div class="big" id="doneStars"></div>
+  <h1 id="doneTitle"></h1>
+  <div class="score" id="doneScore"></div>
+  <div class="record" id="record" hidden>🏆 New record!</div>
+  <p class="note" id="best"></p>
+  <div class="newskin" id="newSkin" hidden></div>
+  <div class="popped" id="popped"></div>
+  <div class="opts"><button class="btn" id="again">Play again ▶</button><button class="btn ghost" id="home">Choose words</button></div>
+</section>
+<audio id="bgm" src="../music.mp3" loop preload="auto"></audio>
+
+<script type="module">
+/* Unit 2 sight words by lesson (same list as Sound Trail's Sight Words section) */
+const SIGHT2=[[1,'am I like'],[2,'at sat the'],[3,'a'],[4,'see'],[5,'dad'],[6,'it if sit did'],[7,'in man and'],[8,'on not mom'],[9,'can an cat'],[11,'up us cut fun'],
+  [12,'to do'],[13,'bat but'],[14,'big got dog'],[15,'bed ten men set get'],[16,'him hot had'],[17,'his is'],[18,'ran run red'],[19,'let look'],[20,'into'],[21,'said'],
+  [22,'yes'],[23,'six box'],[24,'its'],[25,'as has']].map(([l,w])=>({l,words:w.split(' ')}));
+const GROUPS=[[1,4],[5,8],[9,13],[14,17],[18,21],[22,25],[1,25]].map(([a,b])=>({a,b,id:a+'-'+b,words:SIGHT2.filter(L=>L.l>=a&&L.l<=b).flatMap(L=>L.words)}));
+const ALL=SIGHT2.flatMap(L=>L.words);
+const SKINS=[
+  {id:'classic',n:'Classic',need:0,c:['#FF5A5F','#3B7FEE','#1E9A60','#F59E0B','#A55EEA','#FF7A2F']},
+  {id:'candy',n:'Candy',need:60,c:['#FF6FB5','#C86BFA','#FF9671','#F15BB5','#9B5DE5'],d:'🍬'},
+  {id:'ocean',n:'Ocean',need:180,c:['#0096C7','#00B4D8','#0077B6','#2A9D8F','#48CAE4'],d:'🐠'},
+  {id:'space',n:'Space',need:350,c:['#3A0CA3','#560BAD','#7209B7','#4361EE','#480CA8'],d:'✨'},
+  {id:'animals',n:'Animals',need:600,c:['#E76F51','#2A9D8F','#E9C46A','#F4A261','#8AB17D'],d:'🐶🐱🐸🦁🐼🐵🐷🐰'},
+  {id:'rainbow',n:'Rainbow',need:1000,c:['#FF595E','#FFCA3A','#8AC926','#1982C4','#6A4C93'],d:'🌈'}];
+const $=id=>document.getElementById(id);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const rnd=a=>a[Math.random()*a.length|0];
+const store=(k,v)=>{try{if(v===undefined)return localStorage.getItem('balloon.'+k);localStorage.setItem('balloon.'+k,v)}catch(e){return null}};
+let group=store('group')||'1-4';if(!GROUPS.some(g=>g.id===group))group='1-4';
+let skin=store('skin')||'classic';
+const totalPops=()=>+(store('pops')||0);
+const best=id=>+(store('best.'+id)||0);
+const skinOpen=S=>totalPops()>=S.need;
+
+/* ── start screen ── */
+function drawStart(){const G=GROUPS.find(g=>g.id===group);
+  $('groups').innerHTML='';GROUPS.forEach(g=>{const b=document.createElement('button');b.className='chip';b.setAttribute('aria-pressed',String(g.id===group));
+    b.innerHTML=`${g.a===1&&g.b===25?'All lessons':'Lessons '+g.a+'–'+g.b}<small>${best(g.id)?'🏆 '+best(g.id):'new'}</small>`;
+    b.onclick=()=>{group=g.id;store('group',group);drawStart()};$('groups').append(b)});
+  $('preview').textContent=G.words.join(' · ');
+  const nxt=SKINS.find(S=>!skinOpen(S));const prev=[...SKINS].reverse().find(S=>skinOpen(S));
+  if(nxt){$('unlockTxt').textContent=`🎈 ${totalPops()} balloons popped. ${nxt.need-totalPops()} more to unlock ${nxt.n} balloons!`;$('unlockBar').style.width=Math.min(100,(totalPops()-prev.need)/(nxt.need-prev.need)*100)+'%'}
+  else{$('unlockTxt').textContent=`🎈 ${totalPops()} balloons popped. You unlocked every balloon!`;$('unlockBar').style.width='100%'}
+  if(!skinOpen(SKINS.find(S=>S.id===skin)||SKINS[0]))skin='classic';
+  $('skins').innerHTML='';SKINS.forEach(S=>{const b=document.createElement('button');const ok=skinOpen(S);b.className='chip'+(ok?'':' locked');b.setAttribute('aria-pressed',String(S.id===skin));
+    b.innerHTML=`${ok?(S.d?[...S.d][0]:'🎈'):'🔒'} ${S.n}<small>${ok?'':S.need+' pops'}</small>`;
+    b.onclick=()=>{if(!ok){nope();return}skin=S.id;store('skin',skin);drawStart()};$('skins').append(b)})}
+drawStart();
+
+/* ── sound ── */
+let sfxOn=store('sfx')!=='0',musicOn=store('music')!=='0';$('sfx').checked=sfxOn;$('music').checked=musicOn;
+let actx=null;const ac=()=>{actx=actx||new(window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx};
+function tone(fs,dur=.1,type='sine',gain=.14){if(!sfxOn)return;try{const a=ac(),t0=a.currentTime;fs.forEach((f,i)=>{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;const st=t0+i*dur;
+  g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(gain,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+dur*2);o.connect(g).connect(a.destination);o.start(st);o.stop(st+dur*2.2)})}catch(e){}}
+function popSound(pitch=1){if(!sfxOn)return;try{const a=ac(),t=a.currentTime,n=a.sampleRate*.12,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+  const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=buf;f.type='bandpass';f.frequency.value=1400*pitch;g.gain.value=.9;s.connect(f).connect(g).connect(a.destination);s.start(t)}catch(e){}
+  tone([520*pitch,780*pitch],.05,'sine',.08)}
+const nope=()=>tone([230,180],.13,'triangle',.1),levelS=()=>tone([523,659,784,1047],.08,'triangle',.13),goldS=()=>tone([988,1319,1568,2093],.06,'sine',.12),
+  fanfare=()=>tone([523,659,784,1047,784,1047,1319],.12,'triangle',.13),tickS=()=>tone([880],.04,'square',.05);
+const bgm=$('bgm');bgm.volume=.2;const musicPlay=()=>{if(musicOn)bgm.play().catch(()=>{})},musicStop=()=>bgm.pause();
+$('music').onchange=e=>{musicOn=e.target.checked;store('music',musicOn?'1':'0')};$('sfx').onchange=e=>{sfxOn=e.target.checked;store('sfx',sfxOn?'1':'0')};
+const drawMutes=()=>{$('muteM').textContent=musicOn?'🎵':'🚫';$('muteS').textContent=sfxOn?'🔊':'🔇'};
+$('muteM').onclick=()=>{musicOn=!musicOn;store('music',musicOn?'1':'0');$('music').checked=musicOn;musicOn?musicPlay():musicStop();drawMutes()};
+$('muteS').onclick=()=>{sfxOn=!sfxOn;store('sfx',sfxOn?'1':'0');$('sfx').checked=sfxOn;drawMutes()};
+
+/* ── game ── */
+const PER_WORD=5,ROUND=60;
+let G=null;   // the current round
+function newGame(){const grp=GROUPS.find(g=>g.id===group);
+  G={words:grp.words,order:shuffle(grp.words),wi:0,target:null,got:0,score:0,level:1,combo:0,mult:1,time:ROUND,balloons:[],lastSpawn:0,lastTarget:0,popped:{},pops:0,misses:0,
+     running:false,startedAt:0,last:0,S:SKINS.find(S=>S.id===skin)||SKINS[0]};
+  $('field').innerHTML='';nextWord(true);drawHud();countdown()}
+function nextWord(first){if(G.wi>=G.order.length){G.order=shuffle(G.words);G.wi=0}
+  let w=G.order[G.wi++];if(w===G.target&&G.words.length>1)w=G.order[G.wi++]||G.order[0];G.target=w;G.got=0;
+  $('tword').textContent=w;drawDots();const t=$('target');t.classList.remove('flash');void t.offsetWidth;t.classList.add('flash');
+  /* old balloons keep floating but are no longer the target */
+  if(!first){G.level++;banner(`Level ${G.level}! ⬆️`);levelS();G.time=Math.min(G.time+3,99);G.balloons.forEach(b=>{b.isT=b.word===w})}
+  else G.balloons.forEach(b=>{b.isT=b.word===w})}
+function drawDots(){$('tdots').innerHTML=Array.from({length:PER_WORD},(_,i)=>`<i class="${i<G.got?'on':''}"></i>`).join('')}
+function drawHud(){$('score').textContent='⭐ '+G.score;$('lvl').textContent='Level '+G.level;const t=Math.ceil(G.time);$('time').textContent='⏱ '+t;$('time').classList.toggle('low',t<=10);
+  const m=$('mult');m.hidden=G.mult<2;m.textContent=`🔥 ${G.combo} in a row · ×${G.mult}`}
+function countdown(){let n=3;const c=document.createElement('div');c.className='count';document.body.append(c);
+  const step=()=>{if(!G)return c.remove();if(n===0){c.textContent='Go!';tone([784,1047],.1);setTimeout(()=>c.remove(),500);G.running=true;G.last=performance.now();return}
+    c.textContent=n;tickS();n--;setTimeout(step,800)};step()}
+function size(){return Math.max(78,Math.min(130,Math.min(innerWidth,innerHeight)*.15))}
+function spawn(now,forceTarget){const r=size();const gold=forceTarget&&Math.random()<.12;
+  const others=G.words.filter(w=>w!==G.target);const pool=others.length>=2?others:ALL.filter(w=>w!==G.target);
+  const isT=forceTarget||Math.random()<.32;const word=isT?G.target:rnd(pool);
+  /* keep balloons from stacking on one another */
+  let x=0;for(let k=0;k<8;k++){x=r*.6+Math.random()*(innerWidth-r*1.2);if(!G.balloons.some(b=>Math.abs(b.x-x)<r*1.1&&b.y>innerHeight-r*2.2))break}
+  const el=document.createElement('div');el.className='bal'+(gold?' gold':'');const c=rnd(G.S.c);
+  el.style.cssText=`width:${r*1.6}px;height:${r*1.9}px;--c:${c};font-size:${Math.max(28,r*.5)*(word.length>3?.85:1)}px`;
+  el.innerHTML=`<div class="body"></div><div class="str"></div>${G.S.d&&!gold?`<span class="deco">${rnd([...G.S.d])}</span>`:gold?'<span class="deco">⭐</span>':''}<span class="w"></span>`;
+  el.querySelector('.w').textContent=word;
+  const b={el,word,isT:word===G.target,gold,x,y:innerHeight+r,r,w:r*1.6,h:r*1.9,vy:(innerHeight/(7.5-Math.min(4,G.level*.45)))*(gold?1.25:(.85+Math.random()*.3)),phase:Math.random()*6,wrongDone:false};
+  el.addEventListener('pointerdown',e=>{e.preventDefault();touch(b)});
+  $('field').append(el);G.balloons.push(b);G.lastSpawn=now;if(b.isT)G.lastTarget=now}
+function frame(now){if(!G)return;const dt=Math.min(.05,(now-G.last)/1000);G.last=now;
+  if(G.running){G.time-=dt;if(G.time<=0){G.time=0;drawHud();return end()}
+    const gap=Math.max(480,1100-G.level*70);
+    const onT=G.balloons.some(b=>b.isT&&b.y>size());
+    if(now-G.lastSpawn>gap&&G.balloons.length<9)spawn(now,!onT&&now-G.lastTarget>1200);
+    G.balloons.forEach(b=>{b.y-=b.vy*dt;b.phase+=dt*2;const sx=Math.sin(b.phase)*14;b.el.style.transform=`translate(${b.x-b.w/2+sx}px,${b.y-b.h/2}px)`;b.cx=b.x+sx});
+    G.balloons=G.balloons.filter(b=>{if(b.y<-b.h){b.el.remove();return false}return true});
+    if(Math.ceil(G.time)!==G._t){G._t=Math.ceil(G.time);drawHud();if(G._t<=5&&G._t>0)tickS()}}
+  if(handOn)track(now);
+  raf=requestAnimationFrame(frame)}
+function touch(b){if(!G||!G.running||b.dead)return;
+  if(b.word===G.target){pop(b)}
+  else if(!b.wrongDone){b.wrongDone=true;b.el.classList.add('wob','no');setTimeout(()=>b.el.classList.remove('wob'),450);G.combo=0;G.mult=1;G.misses++;nope();drawHud();
+    hint(`That says “${b.word}”. Look for “${G.target}”!`)}}
+function pop(b){b.dead=true;G.combo++;G.mult=Math.min(5,1+Math.floor(G.combo/3));const pts=(b.gold?50:10)*G.mult;G.score+=pts;G.pops++;G.popped[b.word]=(G.popped[b.word]||0)+1;
+  if(b.gold){G.time+=3;goldS();banner('⭐ +3 seconds!')}
+  popSound(1+Math.min(G.combo,10)*.06);if(G.combo>0&&G.combo%5===0)banner(`🔥 ${G.combo} in a row!`);
+  const r=b.el.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height*.45;
+  for(let k=0;k<10;k++){const s=document.createElement('span');s.className='bit';const a=k/10*Math.PI*2;s.style.cssText=`left:${cx}px;top:${cy}px;background:${b.gold?'#FFD84A':getComputedStyle(b.el).getPropertyValue('--c')};--dx:${Math.cos(a)*90}px;--dy:${Math.sin(a)*90}px`;document.body.append(s);setTimeout(()=>s.remove(),600)}
+  const t=document.createElement('div');t.className='boom';t.style.cssText=`left:${cx}px;top:${cy}px;font-size:${b.gold?2.6:2}rem;color:${b.gold?'#F5B000':'#fff'};text-shadow:0 3px 0 rgba(0,0,0,.35)`;t.textContent='+'+pts;document.body.append(t);setTimeout(()=>t.remove(),800);
+  b.el.remove();G.balloons=G.balloons.filter(x=>x!==b);
+  G.got++;drawDots();drawHud();hint(G.got<PER_WORD?`Find ${PER_WORD-G.got} more “${G.target}”`:'');
+  if(G.got>=PER_WORD)setTimeout(()=>{if(G&&G.running)nextWord(false)},250)}
+let hintT=0;function hint(s){$('hint').textContent=s||(handOn?'Point with one finger and touch the balloons':'Tap the balloons');$('hint').hidden=!$('hint').textContent;clearTimeout(hintT);hintT=setTimeout(()=>{if(G)$('hint').textContent=handOn?'Point with one finger and touch the balloons':'Tap the balloons'},2500)}
+function banner(s){const b=document.createElement('div');b.className='banner';b.textContent=s;document.body.append(b);setTimeout(()=>b.remove(),1400)}
+function end(){G.running=false;const g=G;cancelAnimationFrame(raf);
+  const stars=g.score>=400?3:g.score>=180?2:1;$('doneStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  $('doneTitle').textContent=g.pops?`You popped ${g.pops} balloons!`:'Time is up!';$('doneScore').textContent='⭐ '+g.score;
+  const before=totalPops();store('pops',before+g.pops);const old=best(group);const rec=g.score>old&&g.score>0;if(rec)store('best.'+group,g.score);
+  $('record').hidden=!rec;$('best').textContent=rec?(old?`Old record: ${old}`:'Your first record!'):`Your record: ${old} · Level reached: ${g.level}`;
+  const unlocked=SKINS.filter(S=>before<S.need&&before+g.pops>=S.need);$('newSkin').hidden=!unlocked.length;
+  if(unlocked.length)$('newSkin').textContent=`🎁 New balloons unlocked: ${unlocked.map(S=>S.n).join(', ')}!`;
+  $('popped').innerHTML='';Object.entries(g.popped).sort((a,b)=>b[1]-a[1]).forEach(([w,n])=>{const s=document.createElement('span');s.textContent=`${w} ×${n}`;$('popped').append(s)});
+  $('field').innerHTML='';show('done');fanfare();if(rec||unlocked.length)setTimeout(fanfare,900);G=null}
+
+/* ── hand tracking: the index fingertip pops balloons ── */
+let stream=null,landmarker=null,handOn=false,raf=0,lastT=-1,px=-99,py=-99,lastTrail=0;
+async function startCamera(){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:960},height:{ideal:720}},audio:false});
+  const v=$('video');v.srcObject=stream;await v.play();
+  const {HandLandmarker,FilesetResolver}=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
+  const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const opts=d=>({baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',delegate:d},runningMode:'VIDEO',numHands:1});
+  try{landmarker=await HandLandmarker.createFromOptions(files,opts('GPU'))}catch(e){landmarker=await HandLandmarker.createFromOptions(files,opts('CPU'))}
+  handOn=true;$('cursor').hidden=false}
+function stopCamera(){handOn=false;$('cursor').hidden=true;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null}
+/* map a camera point to the screen the way the mirrored, cover-fitted video shows it, with a little extra reach toward the edges */
+function toScreen(p){const v=$('video'),W=innerWidth,H=innerHeight,vw=v.videoWidth||640,vh=v.videoHeight||480;const s=Math.max(W/vw,H/vh),dw=vw*s,dh=vh*s;
+  let x=W-(p.x*dw+(W-dw)/2),y=p.y*dh+(H-dh)/2;const gain=1.3;x=W/2+(x-W/2)*gain;y=H/2+(y-H/2)*gain;
+  return [Math.max(0,Math.min(W,x)),Math.max(0,Math.min(H,y))]}
+function track(now){const v=$('video');if(!landmarker||v.readyState<2||v.currentTime===lastT)return;lastT=v.currentTime;
+  const r=landmarker.detectForVideo(v,now);const lm=r.landmarks&&r.landmarks[0];const c=$('cursor');
+  if(!lm){c.style.opacity=.3;return}
+  const [x,y]=toScreen(lm[8]);px=px<0?x:px*.35+x*.65;py=py<0?y:py*.35+y*.65;c.style.left=px+'px';c.style.top=py+'px';c.style.opacity=1;
+  if(now-lastTrail>40){lastTrail=now;const t=document.createElement('div');t.className='trail';t.style.left=px+'px';t.style.top=py+'px';document.body.append(t);setTimeout(()=>t.remove(),350)}
+  if(!G||!G.running)return;
+  for(const b of [...G.balloons]){const cy=b.y-b.h*.08;if(Math.hypot((b.cx||b.x)-px,(cy-py)*.85)<b.r*.8){touch(b);if(b.word===G.target)break}}}
+
+function show(id){['start','game','done'].forEach(s=>$(s).hidden=s!==id)}
+function begin(){show('game');newGame();hint('');cancelAnimationFrame(raf);raf=requestAnimationFrame(t=>{if(G)G.last=t;frame(t)})}
+$('go').onclick=async()=>{$('err').hidden=true;ac();drawMutes();musicPlay();
+  if($('useCam').checked&&!handOn){show('game');$('field').innerHTML='';$('hint').hidden=false;$('hint').textContent='Starting the camera…';
+    try{await startCamera()}catch(e){stopCamera();$('err').hidden=false;$('err').textContent=e&&e.name==='NotAllowedError'?'Camera blocked. Tap the balloons with your finger instead.':'Camera unavailable. Tap the balloons with your finger instead.'}}
+  begin()};
+$('quit').onclick=()=>{G=null;cancelAnimationFrame(raf);stopCamera();musicStop();$('field').innerHTML='';show('start');drawStart()};
+$('again').onclick=()=>{musicPlay();begin()};
+$('home').onclick=()=>{stopCamera();musicStop();show('start');drawStart()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)musicStop();else if(!$('game').hidden)musicPlay()});
+if(!window.isSecureContext||!navigator.mediaDevices){$('err').hidden=false;$('err').textContent='The camera only works when this page is opened from an https:// address. Tapping still works.';$('useCam').checked=false}
+</script>
+</body>
+</html>
