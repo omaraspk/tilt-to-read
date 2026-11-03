@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Count the Sounds</title>
+    <meta name="description" content="Say the word, tap each sound on a finger, and hold up that many fingers. A webcam hand game for early readers." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='8' width='7' height='16' rx='2' fill='%233B7FEE'/%3E%3Crect x='12.5' y='8' width='7' height='16' rx='2' fill='%23FFBE2E'/%3E%3Crect x='21' y='8' width='7' height='16' rx='2' fill='%231E9A60'/%3E%3C/svg%3E" />
+    <script type="module" crossorigin src="./assets/index-CIAzcrq_.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C_uGE6yn.css">
+  </head>
+  <body>
+    <video id="cam" playsinline muted></video>
+    <canvas id="preview" class="hidden" width="200" height="150"></canvas>
+
+    <div id="hud" class="hud hidden">
+      <button id="quit" class="icon" aria-label="Back to the start">✕</button>
+      <div id="dots" class="dots"></div>
+      <span class="pill" id="streak"></span>
+      <span class="pill" id="score">0</span>
+    </div>
+
+    <main id="play" class="play hidden">
+      <div class="card word-card" id="card">
+        <div class="pic" id="pic"></div>
+        <div class="word" id="word"></div>
+        <div class="boxes" id="boxes"></div>
+        <p class="say" id="say"></p>
+      </div>
+      <div class="meter" id="meter" aria-live="polite">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="52" class="ring-bg" /><circle cx="60" cy="60" r="52" class="ring-fg" id="ring" /></svg>
+        <div class="count" id="count">–</div>
+        <div class="fingers" id="fingers"><i></i><i></i><i></i><i></i><i></i></div>
+        <p class="meter-hint" id="meterHint">Show me your fingers</p>
+      </div>
+      <div class="numbers" id="numbers"></div>
+    </main>
+
+    <section id="title" class="screen-card hidden">
+      <h1>Count the <span>Sounds</span></h1>
+      <svg class="howto" viewBox="0 0 150 110" aria-hidden="true">
+        <!-- a hand raising fingers one at a time: 1, 2, 3 -->
+        <rect class="palm" x="40" y="58" width="70" height="44" rx="18" />
+        <rect class="f thumb" x="16" y="62" width="22" height="16" rx="8" />
+        <rect class="f f1" x="42" y="16" width="14" height="50" rx="7" />
+        <rect class="f f2" x="60" y="10" width="14" height="56" rx="7" />
+        <rect class="f f3" x="78" y="14" width="14" height="52" rx="7" />
+        <rect class="f f4 down" x="96" y="26" width="13" height="40" rx="6.5" />
+      </svg>
+      <p class="how">Look at the picture and say the word. Tap each sound on a finger, then <b>hold up that many fingers</b>. <b>ship</b> is sh·i·p, so that's 3.</p>
+      <div class="chips" id="units"></div>
+      <div class="row">
+        <button id="b-cam">Use my camera</button>
+        <button id="b-tap" class="ghost">Play by tapping</button>
+      </div>
+      <p id="err" class="err"></p>
+      <p class="small">The camera picture stays on this tablet. Nothing is recorded or uploaded. Stand the tablet up and hold your hand up, palm to the screen.</p>
+    </section>
+
+    <section id="results" class="screen-card hidden">
+      <p class="label">You counted</p>
+      <p class="big-stars" id="r-stars"></p>
+      <p class="big" id="r-score">0</p>
+      <p id="r-line"></p>
+      <p class="record hidden" id="r-record">New best!</p>
+      <div class="row">
+        <button id="b-again">Play again</button>
+        <button id="b-home" class="ghost">Change unit</button>
+      </div>
+    </section>
+
+  </body>
+</html>
