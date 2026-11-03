@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Sound Bridge</title>
+    <meta name="description" content="Pull the sound bubbles together to blend a word, pick its picture, and build a bridge. A webcam hand game for early readers." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M2 22 Q16 8 30 22' stroke='%238B5A2B' stroke-width='4' fill='none'/%3E%3Ccircle cx='9' cy='12' r='4' fill='%233B7FEE'/%3E%3Ccircle cx='23' cy='12' r='4' fill='%23FFBE2E'/%3E%3C/svg%3E" />
+    <script type="module" crossorigin src="./assets/index-B9kAmEDS.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Bw6LdhPQ.css">
+  </head>
+  <body>
+    <video id="cam" playsinline muted></video>
+
+    <div id="world" class="world">
+      <div class="sky"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i></div>
+      <div class="zone hidden" id="zone"><div class="slots" id="slots"></div><div class="blend-word" id="blendWord"></div></div>
+      <div id="bubbles"></div>
+      <div id="choices"></div>
+      <div class="bridge" id="bridge">
+        <div class="water"><i></i><i></i><i></i></div>
+        <div class="cliff left"></div>
+        <div class="cliff right"><span class="flag">🏁</span></div>
+        <div class="planks" id="planks"></div>
+        <div class="friend" id="friend"></div>
+      </div>
+      <div id="cursors"></div>
+      <p class="tip hidden" id="tip"></p>
+    </div>
+    <canvas id="preview" class="hidden" width="200" height="150"></canvas>
+
+    <div id="hud" class="hud hidden">
+      <button id="quit" class="icon" aria-label="Back to the start">✕</button>
+      <span class="pill" id="lvl"></span>
+      <span class="grow"></span>
+      <span class="pill" id="stars"></span>
+    </div>
+
+    <section id="title" class="screen-card hidden">
+      <h1>Sound <span>Bridge</span></h1>
+      <p class="how">Pinch a sound bubble and pull it into the middle. Use <b>both hands</b> to pull two at once! When the sounds blend into a word, pinch its picture to lay a plank. Five planks and your friend can cross.</p>
+      <div class="levels" id="levels"></div>
+      <div class="crew" id="crew"></div>
+      <div class="row">
+        <button id="b-cam">Use my camera</button>
+        <button id="b-tap" class="ghost">Play with fingers on the screen</button>
+      </div>
+      <p id="err" class="err"></p>
+      <p class="small">The camera picture stays on this tablet. Nothing is recorded or uploaded. Stand the tablet up and step back until both hands fit.</p>
+    </section>
+
+    <section id="levelup" class="screen-card hidden">
+      <div class="big-friend" id="lu-friend"></div>
+      <h2 id="lu-title"></h2>
+      <p class="big-stars" id="lu-stars"></p>
+      <p id="lu-line"></p>
+      <div class="row">
+        <button id="b-next">Next bridge</button>
+        <button id="b-again" class="ghost">Play again</button>
+        <button id="b-home" class="ghost">Levels</button>
+      </div>
+    </section>
+
+  </body>
+</html>
